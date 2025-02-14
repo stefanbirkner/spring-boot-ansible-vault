@@ -32,6 +32,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 
@@ -171,12 +172,12 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
             }
         }
 
-        private Set<String> getSearchNames() {
+        private Stream<String> getSearchNames() {
             String vaultName = this.environment.getProperty(VAULT_NAME_PROPERTY);
             if (vaultName == null)
-                return Collections.singleton(DEFAULT_NAME);
+                return Stream.of(DEFAULT_NAME);
             else
-                return asResolvedSet(vaultName);
+                return asResolvedSet(vaultName).stream();
         }
 
         private Set<String> getSearchLocations() {
