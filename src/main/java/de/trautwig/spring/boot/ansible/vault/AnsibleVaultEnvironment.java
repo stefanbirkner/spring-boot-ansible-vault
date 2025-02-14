@@ -172,35 +172,39 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
         }
 
         private Set<String> getSearchNames() {
-            if (this.environment.containsProperty(VAULT_NAME_PROPERTY)) {
-                String property = this.environment.getProperty(VAULT_NAME_PROPERTY);
-                return asResolvedSet(property);
-            }
-            return Collections.singleton(DEFAULT_NAME);
+            String vaultName = this.environment.getProperty(VAULT_NAME_PROPERTY);
+            if (vaultName == null)
+                return Collections.singleton(DEFAULT_NAME);
+            else
+                return asResolvedSet(vaultName);
         }
 
         private Set<String> getSearchLocations() {
-            if (this.environment.containsProperty(ConfigFileApplicationListener.CONFIG_LOCATION_PROPERTY)) {
-                return getSearchLocations(ConfigFileApplicationListener.CONFIG_LOCATION_PROPERTY);
+            String configLocation = this.environment.getProperty(ConfigFileApplicationListener.CONFIG_LOCATION_PROPERTY);
+            if (configLocation != null)
+                return getSearchLocations(configLocation);
+            else {
+                String additionalConfigLocation = this.environment.getProperty(ConfigFileApplicationListener.CONFIG_ADDITIONAL_LOCATION_PROPERTY);
+                if (additionalConfigLocation == null)
+                    return new LinkedHashSet<>(DEFAULT_SEARCH_LOCATIONS);
+                else {
+                    Set<String> locations = getSearchLocations(additionalConfigLocation);
+                    locations.addAll(DEFAULT_SEARCH_LOCATIONS);
+                    return locations;
+                }
             }
-            Set<String> locations = getSearchLocations(ConfigFileApplicationListener.CONFIG_ADDITIONAL_LOCATION_PROPERTY);
-            locations.addAll(DEFAULT_SEARCH_LOCATIONS);
-            return locations;
         }
 
-        private Set<String> getSearchLocations(String propertyName) {
+        private Set<String> getSearchLocations(String configLocation) {
             Set<String> locations = new LinkedHashSet<>();
-            if (this.environment.containsProperty(propertyName)) {
-                for (String path : asResolvedSet(
-                        this.environment.getProperty(propertyName))) {
-                    if (!path.contains("$")) {
-                        path = StringUtils.cleanPath(path);
-                        if (!ResourceUtils.isUrl(path)) {
-                            path = ResourceUtils.FILE_URL_PREFIX + path;
-                        }
+            for (String path : asResolvedSet(configLocation)) {
+                if (!path.contains("$")) {
+                    path = StringUtils.cleanPath(path);
+                    if (!ResourceUtils.isUrl(path)) {
+                        path = ResourceUtils.FILE_URL_PREFIX + path;
                     }
-                    locations.add(path);
                 }
+                locations.add(path);
             }
             return locations;
         }
