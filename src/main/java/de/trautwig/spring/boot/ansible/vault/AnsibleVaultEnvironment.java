@@ -164,7 +164,7 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
             try {
                 return yamlLoader.load(propertySourceName, new AnsibleVaultResource(resource, vaultPasswordSupplier.get()));
             } catch (Exception e) {
-                throw new RuntimeException("unable to load " + propertySourceName + ": " + e.getMessage(), e);
+                throw new RuntimeException("unable to load " + propertySourceName, e);
             }
         }
 
