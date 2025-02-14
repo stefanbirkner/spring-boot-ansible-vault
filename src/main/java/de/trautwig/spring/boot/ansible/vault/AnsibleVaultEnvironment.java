@@ -30,7 +30,6 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -123,33 +122,29 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
         }
 
         public void load() {
-            LinkedList<PropertySource> propertySources = new LinkedList<>();
-
             // Load any profile-specific Vault files
             for (String profile : environment.getActiveProfiles()) {
-                load(profile, propertySources::add);
+                load(profile).forEach(environment.getPropertySources()::addLast);
             }
 
             // Load the default Vault file last
-            load(null, propertySources::add);
-
-            propertySources.forEach(environment.getPropertySources()::addLast);
+            load(null).forEach(environment.getPropertySources()::addLast);
         }
 
-        private void load(String profile, Consumer<? super PropertySource> consumer) {
-            getSearchLocations().forEach(location -> {
+        private Stream<PropertySource<?>> load(String profile) {
+            return getSearchLocations().stream()
+                    .flatMap(location -> {
                 boolean isFolder = location.endsWith("/");
                 if (isFolder) {
-                    getSearchNames().forEach(name -> {
-                        load(location + name, profile, consumer);
-                    });
+                    return getSearchNames()
+                            .flatMap(name -> load(location + name, profile));
                 } else {
-                    load(location, profile, consumer);
+                    return load(location, profile);
                 }
             });
         }
 
-        private void load(String prefix, String profile, Consumer<? super PropertySource> consumer) {
+        private Stream<PropertySource<?>> load(String prefix, String profile) {
             String profileSpecificFile;
             if (profile != null) {
                 profileSpecificFile = prefix + "-" + profile + FILE_EXTENSION;
@@ -158,15 +153,16 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
             }
 
             Resource resource = this.resourceLoader.getResource(profileSpecificFile);
-            if (resource != null && resource.exists()) {
-                loadVault(resource, consumer);
-            }
+            if (resource != null && resource.exists())
+                return loadVault(resource).stream();
+            else
+                return Stream.empty();
         }
 
-        private void loadVault(Resource resource, Consumer<? super PropertySource> consumer) {
+        private List<PropertySource<?>> loadVault(Resource resource) {
             final String propertySourceName = "vault: [" + resource.toString() + "]";
             try {
-                yamlLoader.load(propertySourceName, new AnsibleVaultResource(resource, vaultPasswordSupplier.get())).forEach(consumer::accept);
+                return yamlLoader.load(propertySourceName, new AnsibleVaultResource(resource, vaultPasswordSupplier.get()));
             } catch (Exception e) {
                 throw new RuntimeException("unable to load " + propertySourceName + ": " + e.getMessage(), e);
             }
