@@ -119,9 +119,8 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
             LinkedList<PropertySource> propertySources = new LinkedList<>();
 
             // Load any profile-specific Vault files
-            LinkedList<String> profiles = new LinkedList<>(Arrays.asList(environment.getActiveProfiles()));
-            while (!profiles.isEmpty()) {
-                load(profiles.poll(), propertySources::add);
+            for (String profile : environment.getActiveProfiles()) {
+                load(profile, propertySources::add);
             }
 
             // Load the default Vault file last
