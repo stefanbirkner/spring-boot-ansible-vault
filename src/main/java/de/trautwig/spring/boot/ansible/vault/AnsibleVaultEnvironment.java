@@ -33,6 +33,8 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static java.util.Arrays.asList;
+
 /**
  * {@link EnvironmentPostProcessor} that loads "Ansible Vault" encrypted configuration files from well-known locations.
  * By default, a 'vault.yml' will be loaded in the following locations:
@@ -55,7 +57,11 @@ import java.util.function.Supplier;
  * @see AnsibleVaultPasswordSource
  */
 public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
-    private static final String DEFAULT_SEARCH_LOCATIONS = "classpath:/,classpath:/config/,file:./,file:./config/";
+    private static final List<String> DEFAULT_SEARCH_LOCATIONS = asList(
+            "file:./config/",
+            "file:./",
+            "classpath:/config/",
+            "classpath:/");
     private static final String DEFAULT_NAME = "vault";
     private static final String FILE_EXTENSION = ".yml";
 
@@ -168,7 +174,7 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
         private Set<String> getSearchNames() {
             if (this.environment.containsProperty(VAULT_NAME_PROPERTY)) {
                 String property = this.environment.getProperty(VAULT_NAME_PROPERTY);
-                return asResolvedSet(property, null);
+                return asResolvedSet(property);
             }
             return Collections.singleton(DEFAULT_NAME);
         }
@@ -178,7 +184,7 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
                 return getSearchLocations(ConfigFileApplicationListener.CONFIG_LOCATION_PROPERTY);
             }
             Set<String> locations = getSearchLocations(ConfigFileApplicationListener.CONFIG_ADDITIONAL_LOCATION_PROPERTY);
-            locations.addAll(asResolvedSet(null, DEFAULT_SEARCH_LOCATIONS));
+            locations.addAll(DEFAULT_SEARCH_LOCATIONS);
             return locations;
         }
 
@@ -186,7 +192,7 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
             Set<String> locations = new LinkedHashSet<>();
             if (this.environment.containsProperty(propertyName)) {
                 for (String path : asResolvedSet(
-                        this.environment.getProperty(propertyName), null)) {
+                        this.environment.getProperty(propertyName))) {
                     if (!path.contains("$")) {
                         path = StringUtils.cleanPath(path);
                         if (!ResourceUtils.isUrl(path)) {
@@ -199,13 +205,12 @@ public class AnsibleVaultEnvironment implements EnvironmentPostProcessor {
             return locations;
         }
 
-        private Set<String> asResolvedSet(String value, String fallback) {
-            List<String> list = Arrays.asList(StringUtils.trimArrayElements(
-                    StringUtils.commaDelimitedListToStringArray((value != null)
-                            ? this.environment.resolvePlaceholders(value) : fallback)));
+        private Set<String> asResolvedSet(String value) {
+            List<String> list = asList(StringUtils.trimArrayElements(
+                    StringUtils.commaDelimitedListToStringArray(
+                            this.environment.resolvePlaceholders(value))));
             Collections.reverse(list);
             return new LinkedHashSet<>(list);
         }
-
     }
 }
